@@ -312,11 +312,36 @@
     bool needPatch = [info[@"LCPatchRevision"] intValue] < currentPatchRev;
     if (needPatch || forceSign) {
         // copy-delete-move to avoid EXC_BAD_ACCESS (SIGKILL - CODESIGNING)
+        // P0-6: if any step fails we must not leave the executable in a
+        // half-moved state where the original is gone and only a copy
+        // remains at a different path. Check each step's return value
+        // and roll back where possible.
         NSString *backupPath = [NSString stringWithFormat:@"%@/%@_LiveContainerPatchBackUp", appPath, _infoPlist[@"CFBundleExecutable"]];
-        NSError *err;
-        [fm copyItemAtPath:execPath toPath:backupPath error:&err];
-        [fm removeItemAtPath:execPath error:&err];
-        [fm moveItemAtPath:backupPath toPath:execPath error:&err];
+        NSError *err = nil;
+        if (![fm copyItemAtPath:execPath toPath:backupPath error:&err]) {
+            // The source is still intact; nothing to roll back. Bail.
+            NSLog(@"[LC] LiveContainer patch backup copy failed: %@", err);
+            return;
+        }
+        if (![fm removeItemAtPath:execPath error:&err]) {
+            // The source is still present; clean up the backup copy.
+            NSLog(@"[LC] LiveContainer patch remove source failed: %@", err);
+            [fm removeItemAtPath:backupPath error:nil];
+            return;
+        }
+        if (![fm moveItemAtPath:backupPath toPath:execPath error:&err]) {
+            // Source is gone but the move failed — try to roll back by
+            // copying the backup back to the original location, then
+            // bail. If the rollback fails the app is bricked; log so
+            // the user can see it.
+            NSLog(@"[LC] LiveContainer patch move failed: %@. Rolling back.", err);
+            NSError *rollbackErr = nil;
+            if (![fm copyItemAtPath:backupPath toPath:execPath error:&rollbackErr]) {
+                NSLog(@"[LC] LiveContainer patch rollback FAILED: %@. App may be bricked.", rollbackErr);
+            }
+            [fm removeItemAtPath:backupPath error:nil];
+            return;
+        }
     }
     
     bool is32bit = false;
