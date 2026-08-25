@@ -1194,7 +1194,24 @@ struct LCAppListView : View, LCAppBannerDelegate, LCAppModelDelegate {
             Task { await installFromUrl(urlStr: url.absoluteString) }
             return
         }
-        
+
+        // P1-12: validate control URLs against the HMAC for any
+        // privileged verb. The challenge verb is the only unauthenticated
+        // entry point — fetching a nonce is not a privileged action.
+        let privilegedVerbs: Set<String> = [
+            "install", "certificate", "livecontainer-launch",
+            "import-certificate", "remove-certificate"
+        ]
+        if let host = url.host, privilegedVerbs.contains(host) {
+            do {
+                try LCURLAuth.validate(url)
+            } catch {
+                self.errorInfo = "[URL auth] \(error.localizedDescription)"
+                self.errorShow = true
+                return
+            }
+        }
+
         if url.scheme == "sidestore" && UserDefaults.sideStoreExist() {
             UserDefaults.standard.setValue(url.absoluteString, forKey: "launchAppUrlScheme")
             LCUtils.openSideStore(delegate: self)

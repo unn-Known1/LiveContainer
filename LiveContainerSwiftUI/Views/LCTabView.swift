@@ -107,6 +107,17 @@ struct LCTabView: View {
     }
     
     func dispatchURL(url: URL) {
+        // P1-12: special-case the challenge verb. The caller is
+        // asking for a fresh nonce to sign the next control URL —
+        // we return it via the existing `errorInfo` channel and
+        // bail without enqueueing.
+        if url.host?.lowercased() == LCURLAuth.challengeVerb {
+            let nonce = LCURLAuth.issueNonce()
+            errorInfo = "nonce=\(nonce)"
+            errorShow = true
+            return
+        }
+
         repeat {
             if url.isFileURL {
                 sharedModel.selectedTab = .apps
@@ -116,11 +127,11 @@ struct LCTabView: View {
                 sharedModel.selectedTab = .apps
                 break
             }
-            
+
             guard let host = url.host?.lowercased() else {
                 return
             }
-            
+
             switch host {
             case "livecontainer-launch", "install", "open-web-page", "open-url":
                 sharedModel.selectedTab = .apps
@@ -131,9 +142,16 @@ struct LCTabView: View {
             default:
                 return
             }
-            
+
         } while(false)
 
+        // P1-12: enqueue instead of overwriting. The previous code
+        // set `deepLink = url` which dropped any pending link from
+        // a previous URL. The queue preserves all of them and the
+        // relevant view drains it on activation.
+        sharedModel.enqueueDeepLink(url)
+        // Keep the single-slot `deepLink` for backward compatibility
+        // with the views that still read it.
         sharedModel.deepLink = url
     }
     

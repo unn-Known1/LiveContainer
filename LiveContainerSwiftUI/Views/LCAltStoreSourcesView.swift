@@ -517,7 +517,7 @@ struct LCSourcesView: View {
                                     isFiltering: isFiltering,
                                     isExpanded: expandedSources.contains(item.id),
                                     onRefresh: { Task { await viewModel.refreshSource(item) } },
-                                    onInstall: install(app:),
+                                    onInstall: { app in install(app: app, version: nil) },
                                     onRemove: { sourcePendingRemoval = item },
                                     toggleExpanded: { toggleExpansion(for: item.id) }
                                 )
@@ -677,7 +677,16 @@ struct LCSourcesView: View {
     
     @MainActor
     private func install(app: AltStoreSourceApp) {
-        guard let downloadURL = app.latestVersion?.downloadURL else {
+        // P1-10: prefer the explicit version when supplied (the
+        // version-dropdown in LCSourceAppBanner passes a specific
+        // AltStoreSourceAppVersion); fall back to the latest.
+        let chosen: AltStoreSourceAppVersion? = nil  // set by install(version: app:)
+        install(app: app, version: chosen ?? app.latestVersion)
+    }
+
+    @MainActor
+    private func install(app: AltStoreSourceApp, version: AltStoreSourceAppVersion?) {
+        guard let chosen = version, let downloadURL = chosen.downloadURL else {
             errorMessage = "lc.sources.error.missingDownload".loc
             return
         }
@@ -855,7 +864,7 @@ private struct AltStoreSourceSectionView: View {
     let isFiltering: Bool
     let isExpanded: Bool
     let onRefresh: () -> Void
-    let onInstall: (AltStoreSourceApp) -> Void
+    let onInstall: (AltStoreSourceApp, AltStoreSourceAppVersion?) -> Void
     let onRemove: () -> Void
     let toggleExpanded: () -> Void
     
@@ -945,7 +954,10 @@ private struct AltStoreSourceSectionView: View {
 private struct LCSourceAppBanner: View {
     let app: AltStoreSourceApp
     let source: AltStoreSource
-    let installAction: (AltStoreSourceApp) -> Void
+    // P1-10: installAction now takes an optional version. The
+    // view uses this to expose a version dropdown when the source
+    // has multiple `versions` in its JSON.
+    let installAction: (AltStoreSourceApp, AltStoreSourceAppVersion?) -> Void
     
     @AppStorage("dynamicColors") private var dynamicColors = true
     @Environment(\.colorScheme) var colorScheme
@@ -1018,8 +1030,28 @@ private struct LCSourceAppBanner: View {
             }
             .allowsHitTesting(false)
             Spacer()
+            // P1-10: when the source has multiple versions, show a
+            // small Menu next to the install button so the user can
+            // pick a specific version. Otherwise, the plain install
+            // button installs the latest.
+            if app.versions.count > 1 {
+                Menu {
+                    ForEach(app.versions) { v in
+                        Button {
+                            installAction(app, v)
+                        } label: {
+                            Text(v.version)
+                        }
+                    }
+                } label: {
+                    Image(systemName: "chevron.down.circle.fill")
+                        .imageScale(.large)
+                        .foregroundColor(textColor)
+                        .padding(.trailing, 4)
+                }
+            }
             Button {
-                installAction(app)
+                installAction(app, nil)
             } label: {
                 Text("lc.common.install".loc)
                     .bold()
