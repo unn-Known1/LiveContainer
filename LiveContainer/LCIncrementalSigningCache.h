@@ -35,6 +35,10 @@ NS_ASSUME_NONNULL_BEGIN
 /// the app group is unset (cache becomes a no-op).
 + (void)registerOnAppGroupID:(nullable NSString *)appGroupID;
 
+/// Lowercase hex SHA-256 of the input bytes. Used to key
+/// the cache and the cert blob.
++ (NSString *)sha256OfData:(NSData *)data;
+
 /// Returns YES if the bundle's executable is already signed
 /// with the current cert and the executable content hash
 /// matches the cached hash. NO otherwise (cache miss or
