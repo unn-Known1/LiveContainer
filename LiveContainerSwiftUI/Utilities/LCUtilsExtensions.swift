@@ -149,8 +149,15 @@ extension LCUtils {
         if !success {
             return false
         }
+        // P0-7: unlock hidden apps with an automatic re-lock. The previous
+        // implementation set `isHiddenAppUnlocked = true` for the entire
+        // app lifetime; anyone who picked up the device after one Face ID
+        // got to see all hidden apps. Schedule a Task that re-locks
+        // after the user-configured timeout (default 5 min), and also
+        // re-lock immediately on app background.
         DispatchQueue.main.async {
             DataManager.shared.model.isHiddenAppUnlocked = true
+            LCHiddenAppLock.scheduleReLock()
         }
         return true
     }
