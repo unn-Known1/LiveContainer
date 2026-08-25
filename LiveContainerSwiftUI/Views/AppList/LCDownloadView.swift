@@ -14,24 +14,37 @@ public final class DownloadHelper : ObservableObject {
     @Published var isDownloading = false
     @Published var cancelled = false
     private var downloadTask: URLSessionDownloadTask?
+    // P0-2: serialize all access to `continuation` and guard with a single-owner
+    // `resumed` flag. `UnsafeContinuation` does not catch double-resume — it
+    // traps at runtime. The previous code mutated `continuation` from both
+    // `cancel()` and the URLSession completion callback without coordination.
+    private let continuationQueue = DispatchQueue(label: "com.livecontainer.downloadhelper.continuation")
     private var continuation: UnsafeContinuation<(), Never>?
-    
+    private var resumed = false
+
     func download(url: URL, to: URL) async throws {
         var ansError: Error? = nil
 
         await MainActor.run {
             cancelled = false
-            
+
             downloadProgress = 0.0
             downloadedSize = 0
             totalSize = 0
-            
+
             isDownloading = true
         }
-        
+
+        // reset resume state for a new download
+        continuationQueue.sync {
+            self.resumed = false
+        }
+
         await withUnsafeContinuation { c in
-            continuation = c
-            
+            continuationQueue.sync {
+                self.continuation = c
+            }
+
             let bgConfig = URLSessionConfiguration.background(withIdentifier: "com.livecontainer.download.\(UUID().uuidString)")
             let session = URLSession(configuration: bgConfig, delegate: DownloadDelegate(progressCallback: { progress, downloaded, total in
                 Task{ await MainActor.run {
@@ -56,8 +69,16 @@ public final class DownloadHelper : ObservableObject {
                         ansError = error
                     }
                 }
-                if self.continuation != nil {
-                    c.resume()
+                // P0-2: gate the resume through a single-owner `resumed` flag
+                // so cancel() and completion cannot both call c.resume().
+                self.continuationQueue.sync {
+                    if !self.resumed {
+                        self.resumed = true
+                        if let c = self.continuation {
+                            self.continuation = nil
+                            c.resume()
+                        }
+                    }
                 }
 
             }), delegateQueue: .main)
@@ -69,15 +90,27 @@ public final class DownloadHelper : ObservableObject {
             throw ansError
         }
     }
-    
+
     func cancel() {
-        if let continuation {
-            continuation.resume()
+        // P0-2: take the resume exactly once. If completion already resumed
+        // the awaiting task, this is a no-op (the caller is already back).
+        var didResume = false
+        continuationQueue.sync {
+            if !resumed {
+                resumed = true
+                didResume = true
+                if let c = continuation {
+                    continuation = nil
+                    c.resume()
+                }
+            }
         }
+        _ = didResume
         cancelled = true
-        continuation = nil
         downloadTask?.cancel()
-        isDownloading = false
+        Task { @MainActor in
+            self.isDownloading = false
+        }
     }
 }
 
