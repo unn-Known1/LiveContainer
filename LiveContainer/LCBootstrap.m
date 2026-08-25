@@ -38,7 +38,12 @@ bool sideStoreExist = false;
     return lcUserDefaults;
 }
 + (instancetype)lcSharedDefaults {
-    if(!lcUserDefaults) {
+    // P0-4: the previous condition was `if(!lcUserDefaults)` which
+    // gated lazy initialization of `lcSharedDefaults` on the unrelated
+    // `lcUserDefaults` global. As a result, callers that hit
+    // `lcSharedDefaults` before any `lcUserDefaults` access always
+    // returned nil. Initialize based on the variable we actually own.
+    if(!lcSharedDefaults) {
         lcSharedDefaults = [[NSUserDefaults alloc] initWithSuiteName: [LCSharedUtils appGroupID]];
     }
     return lcSharedDefaults;
