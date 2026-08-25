@@ -209,6 +209,18 @@ class LCAppModel: ObservableObject, Hashable {
         if isAppRunning {
             return
         }
+
+        // P1-14: record this launch in the widget's recents list.
+        // The widget reads LCRecentAppBundleIDs from the app-group
+        // UserDefaults and shows the top 3 entries.
+        if let bid = appInfo.bundleIdentifier() {
+            let key = "LCRecentAppBundleIDs"
+            var arr = (LCUtils.appGroupUserDefault.array(forKey: key) as? [String]) ?? []
+            arr.removeAll { $0 == bid }
+            arr.insert(bid, at: 0)
+            if arr.count > 8 { arr = Array(arr.prefix(8)) }
+            LCUtils.appGroupUserDefault.set(arr, forKey: key)
+        }
         
         if uiContainers.isEmpty {
             let newName = NSUUID().uuidString

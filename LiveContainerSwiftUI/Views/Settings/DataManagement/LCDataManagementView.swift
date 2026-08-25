@@ -118,6 +118,34 @@ struct LCDataManagementView : View {
                     }
                 }
             }
+
+            // P1-9: backup & restore section. Settings snapshot
+            // and per-container backup are exposed here; restore
+            // takes a file picked via the system document picker.
+            Section {
+                Button {
+                    do {
+                        let url = try LCBackupManager.shared.backupSettings()
+                        successInfo = "Settings backed up to: \(url.lastPathComponent)"
+                        successShow = true
+                    } catch {
+                        errorInfo = "Backup failed: \(error.localizedDescription)"
+                        errorShow = true
+                    }
+                } label: {
+                    Label("lc.settings.backupSettings".loc, systemImage: "square.and.arrow.up")
+                }
+
+                NavigationLink {
+                    LCBackupRestoreView()
+                } label: {
+                    Label("lc.settings.backupRestore".loc, systemImage: "arrow.triangle.2.circlepath")
+                }
+            } header: {
+                Text("lc.settings.backupRestoreHeader".loc)
+            } footer: {
+                Text("lc.settings.backupRestoreFooter".loc)
+            }
         }
         .navigationTitle("lc.settings.dataManagement".loc)
         .navigationBarTitleDisplayMode(.inline)
