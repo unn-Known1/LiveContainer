@@ -6,7 +6,7 @@
 #import "LCAppInfo.h"
 #import "LCUtils.h"
 #import "../../LiveContainer/LCSharedUtils.h"
-#import "../../LiveContainer/LCIncrementalSigningCache.h"
+#import "../Utilities/LCIncrementalSigningCache.h"
 
 
 @implementation LCAppInfo

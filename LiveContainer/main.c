@@ -3,7 +3,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <limits.h>
-#include "LCSignalHandler.h"
+#include "../LiveContainerSwiftUI/Utilities/LCSignalHandler.h"
 
 void* lcShared = 0;
 
