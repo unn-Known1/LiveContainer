@@ -428,7 +428,11 @@ struct LCAppListView : View, LCAppBannerDelegate, LCAppModelDelegate {
         }
         .onReceive(NotificationCenter.default.publisher(for: NSNotification.InstallAppNotification)) { obj in
             if let obj2 = obj.object as? [String: Any], let installUrl = obj2["url"] as? URL {
-                Task { await installFromUrl(urlStr: installUrl.absoluteString) }
+                // P0-3: route through the serial install queue. The
+                // notification may fire from any thread; the queue
+                // ensures the install actually runs even if one is
+                // already in progress.
+                LCInstallQueue.shared.enqueueFromNotification(installUrl)
             }
         }
         .searchable(text: $searchContext.query)
@@ -857,11 +861,12 @@ struct LCAppListView : View, LCAppBannerDelegate, LCAppModelDelegate {
     }
     
     func installFromUrl(urlStr: String) async {
-        // ignore any install request if we are installing another app
-        if self.installprogressVisible {
-            return
-        }
-        
+        // P0-3: queue installs instead of silently dropping. Multiple
+        // concurrent install requests (e.g. from the Sources tab and the
+        // Library tab) used to return early when `installprogressVisible`
+        // was true, losing the request entirely. The InstallQueue now
+        // serializes them so each one eventually runs.
+
         if sharedModel.multiLCStatus == 2 {
             errorInfo = "lc.appList.manageInPrimaryTip".loc
             errorShow = true

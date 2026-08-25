@@ -684,11 +684,10 @@ struct LCSourcesView: View {
         withAnimation {
             DataManager.shared.model.selectedTab = .apps
         }
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
-            NotificationCenter.default.post(name: NSNotification.InstallAppNotification, object: ["url": downloadURL])
-        }
-
-
+        // P0-3: drop the 0.5 s DispatchQueue.main.asyncAfter hack. The
+        // InstallQueue in LCAppListView now serializes installs and
+        // handles the tab-switch handoff for us.
+        LCInstallQueue.shared.enqueueFromNotification(downloadURL)
     }
     
     private func toggleExpansion(for id: URL) {
