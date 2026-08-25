@@ -366,11 +366,32 @@
 
 - (void)setBackgroundNotificationEnabled:(bool)enabled {
     if(self.usesHostingControllerAPI) {
-        /// Issue with new API: FBSSceneObserver takes priority over to send UIApplicationWillResignActiveNotification regressed #942,
-        /// so here we make it foreground (UIApplicationDidBecomeActiveNotification) again.
+        // P1-11 (background-correct minimize — second half): the
+        // previous code ALWAYS set foreground=YES in the new
+        // hosting-controller API path, regardless of the `enabled`
+        // argument. Result: every multitask guest stayed pinned
+        // "foreground" on iOS 18+ even when minimized, draining
+        // battery and never seeing didEnterBackground. Respect
+        // a UserDefaults toggle `LCBackgroundCorrectMinimized`
+        // (default ON) and the `enabled` argument.
+        NSUserDefaults *defaults = [NSUserDefaults standardUserDefaults];
+        bool correctMinimize = [defaults boolForKey:@"LCBackgroundCorrectMinimized"];
+        if (!correctMinimize) {
+            // Legacy behavior: keep the bug-for-bug workaround
+            // from #942 (forced foreground) regardless of the
+            // enabled argument.
+            [self.presenter.scene updateSettingsWithBlock:^(UIMutableApplicationSceneSettings *settings) {
+                settings.foreground = YES;
+                settings.deactivationReasons = 0;
+            }];
+            return;
+        }
+        // Correct path: clear foreground when the caller asks
+        // for background notifications to be enabled, so the
+        // guest actually sees didEnterBackground when minimized.
         [self.presenter.scene updateSettingsWithBlock:^(UIMutableApplicationSceneSettings *settings) {
-            settings.foreground = YES;
-            settings.deactivationReasons = 0;
+            settings.foreground = enabled ? NO : YES;
+            settings.deactivationReasons = enabled ? UISceneDeactivationReasonAll : 0;
         }];
         return;
     }
