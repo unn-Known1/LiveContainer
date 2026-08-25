@@ -3,10 +3,14 @@
 #include <stdlib.h>
 #include <string.h>
 #include <limits.h>
+#include "LCSignalHandler.h"
 
 void* lcShared = 0;
 
 int LiveContainerMainC(int argc, char *argv[]) {
+    // P1-15: install BSD signal handlers so native crashes (SIGSEGV,
+    // SIGABRT, etc.) surface as a JSON report on the next launch.
+    LCSignalHandlerInstall();
     const char *home = getenv("HOME");
 
     int (*lcMain)(int argc, char *argv[]) = 0;

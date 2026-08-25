@@ -11,10 +11,16 @@ struct LiveContainerSwiftUIApp : SwiftUI.App {
     @UIApplicationDelegateAdaptor(AppDelegate.self) var appDelegate
     
     init() {
+        // P1-15: dump any pending BSD signal crash report from the
+        // previous launch. The signal handler only records metadata
+        // (async-signal-safe) — the actual JSON dump + UserDefaults
+        // write happens here, on the main thread.
+        _ = LCSignalHandlerDumpAndClearReport()
+
         let fm = FileManager()
         var tempAppDataFolderNames : [String] = []
         var tempTweakFolderNames : [String] = []
-        
+
         var tempApps: [LCAppModel] = []
         var tempHiddenApps: [LCAppModel] = []
         var tempURLSchemes: Set<String>? = DataManager.shared.model.multiLCStatus != 2 ? Set() : nil
