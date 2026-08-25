@@ -55,6 +55,26 @@ struct LCPath {
 class SharedModel: ObservableObject {
     @Published var selectedTab: LCTabIdentifier = .apps
     @Published var deepLink: URL?
+
+    // P1-12: deep-link queue. The previous code stored a single
+    // `deepLink` URL; successive URLs overwrote the previous one
+    // silently. Replace with a bounded FIFO that consumers drain
+    // on tab activation.
+    @Published var pendingDeepLinks: [URL] = []
+
+    public func enqueueDeepLink(_ url: URL) {
+        // Cap the queue at 8 entries to avoid unbounded growth if
+        // a misbehaving caller floods us.
+        if pendingDeepLinks.count >= 8 {
+            pendingDeepLinks.removeFirst()
+        }
+        pendingDeepLinks.append(url)
+    }
+
+    public func dequeueDeepLink() -> URL? {
+        guard !pendingDeepLinks.isEmpty else { return nil }
+        return pendingDeepLinks.removeFirst()
+    }
     
     @Published var isHiddenAppUnlocked = false
     @Published var developerMode = false
