@@ -146,7 +146,11 @@ struct LCTweakFolderView : View {
                     Button {
                         Task { await signAllTweaks() }
                     } label: {
-                        Label("sign".loc, systemImage: "signature")
+                        // P2-A2: "sign" was a user-visible string that
+                        // bypassed .loc; the catalog has no entry for it
+                        // and the English fallback returned the literal
+                        // "sign". Use a proper key.
+                        Label("lc.tweaks.sign".loc, systemImage: "signature")
                     }
                 }
 
