@@ -92,15 +92,24 @@ struct LiveContainerSwiftUIApp : SwiftUI.App {
                 NSLog("[LC] error: \(error)")
             }
 
-            // Hand the results back to the main actor.
+            // Hand the results back to the main actor. Swift 6
+            // (Xcode 26.2) flags the previous direct use of the
+            // captured `tempXxx` vars as "reference to captured
+            // var in concurrently-executing code". Capture them
+            // into a local `let` first.
+            let apps = tempApps
+            let hiddenApps = tempHiddenApps
+            let dataFolders = tempAppDataFolderNames
+            let tweakFolders = tempTweakFolderNames
+            let urlSchemes = Array(tempURLSchemes)
             await MainActor.run {
                 let model = DataManager.shared.model
-                model.apps = tempApps
-                model.hiddenApps = tempHiddenApps
-                model.appDataFolderNames = tempAppDataFolderNames
-                model.tweakFolderNames = tempTweakFolderNames
-                if !tempURLSchemes.isEmpty {
-                    UserDefaults.lcShared().set(Array(tempURLSchemes), forKey: "LCGuestURLSchemes")
+                model.apps = apps
+                model.hiddenApps = hiddenApps
+                model.appDataFolderNames = dataFolders
+                model.tweakFolderNames = tweakFolders
+                if !urlSchemes.isEmpty {
+                    UserDefaults.lcShared().set(urlSchemes, forKey: "LCGuestURLSchemes")
                 }
             }
         }

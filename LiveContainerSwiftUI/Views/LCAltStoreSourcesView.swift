@@ -647,10 +647,11 @@ struct LCSourcesView: View {
 
     @MainActor
     private func install(app: AltStoreSourceApp, version: AltStoreSourceAppVersion?) {
-        guard let chosen = version, let downloadURL = chosen.downloadURL else {
+        guard let chosen = version else {
             errorMessage = "lc.sources.error.missingDownload".loc
             return
         }
+        let downloadURL = chosen.downloadURL
         withAnimation {
             DataManager.shared.model.selectedTab = .apps
         }
@@ -721,7 +722,7 @@ struct LCSourcesView: View {
     }
 
     @ViewBuilder
-    private func sectionRow(for item: AltStoreSource) -> some View {
+    private func sectionRow(for item: AltStoreSourcesViewModel.SourceItem) -> some View {
         let apps = filteredApps(for: item)
         AltStoreSourceSectionView(
             item: item,

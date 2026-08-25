@@ -72,9 +72,10 @@ public final class LCBackupManager {
 
     /// Backup a single container to a folder-archive in
     /// Documents/Backups/. Returns the URL of the written
-    /// archive directory.
-    public func backupContainer(_ container: LCContainer,
-                                 appInfo: LCAppInfo) throws -> URL {
+    /// archive directory. Internal (not public) because
+    /// LCContainer / LCAppInfo are internal types.
+    func backupContainer(_ container: LCContainer,
+                         appInfo: LCAppInfo) throws -> URL {
         let containerURL = container.containerURL
         let bundleID = appInfo.bundleIdentifier() ?? "unknown"
         let sidecar = LCContainerBackupSidecar(
@@ -111,8 +112,10 @@ public final class LCBackupManager {
         return outURL
     }
 
-    /// Restore a container backup folder-archive.
-    public func restoreContainer(from archiveURL: URL) throws -> LCContainerBackupSidecar {
+    /// Restore a container backup folder-archive. Internal
+    /// (the returned sidecar struct is public, but the method
+    /// is not — callers in the same module can use it).
+    func restoreContainer(from archiveURL: URL) throws -> LCContainerBackupSidecar {
         let sidecarURL = archiveURL.appendingPathComponent("sidecar.json")
         let data = try Data(contentsOf: sidecarURL)
         let sidecar = try JSONDecoder.iso8601().decode(LCContainerBackupSidecar.self, from: data)
@@ -138,7 +141,7 @@ public final class LCBackupManager {
     // MARK: - Settings backup
 
     /// Snapshot the app-group UserDefaults to a JSON file.
-    public func backupSettings() throws -> URL {
+    func backupSettings() throws -> URL {
         guard let groupID = LCSharedUtils.appGroupID() else {
             throw NSError(domain: "LCBackup", code: 4,
                           userInfo: [NSLocalizedDescriptionKey: "No app group configured."])
@@ -168,7 +171,7 @@ public final class LCBackupManager {
 
     /// Apply a settings JSON snapshot. Caller is responsible for
     /// restarting LiveContainer for some keys to take effect.
-    public func restoreSettings(from jsonURL: URL) throws {
+    func restoreSettings(from jsonURL: URL) throws {
         let data = try Data(contentsOf: jsonURL)
         let snap = try JSONDecoder.iso8601().decode(LCSettingsBackup.self, from: data)
         guard let shared = UserDefaults(suiteName: snap.sourceAppGroup) else {
