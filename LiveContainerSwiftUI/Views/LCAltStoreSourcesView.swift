@@ -730,7 +730,7 @@ struct LCSourcesView: View {
             isFiltering: isFiltering,
             isExpanded: expandedSources.contains(item.id),
             onRefresh: { Task { await viewModel.refreshSource(item) } },
-            onInstall: { app in install(app: app, version: nil) },
+            onInstall: { app, _ in install(app: app, version: nil) },
             onRemove: { sourcePendingRemoval = item },
             toggleExpanded: { toggleExpansion(for: item.id) }
         )
