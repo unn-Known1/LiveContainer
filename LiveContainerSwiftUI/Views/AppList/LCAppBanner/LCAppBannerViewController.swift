@@ -147,7 +147,8 @@ final class LCAppBannerViewController: UIViewController, UIContextMenuInteractio
                     self?.refreshView()
                 }
             }
-            menuChildren.append(UIMenu(title: "Containers", options: .displayInline, children: containerActions))
+            // P2-19: extract hardcoded user-visible string.
+            menuChildren.append(UIMenu(title: "lc.appBanner.containers".loc, options: .displayInline, children: containerActions))
         }
 
         // 2. Main Section

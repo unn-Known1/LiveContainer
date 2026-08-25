@@ -225,7 +225,8 @@ struct LCAppListView : View, LCAppBannerDelegate, LCAppModelDelegate {
                                     Task{ await startInstallFromUrl() }
                                 })
                             } label: {
-                                Label("add", systemImage: "plus")
+                                // P2-19: extract hardcoded user-visible string.
+                                Label("lc.common.add".loc, systemImage: "plus")
                             }
                             
                         } else {
@@ -243,7 +244,8 @@ struct LCAppListView : View, LCAppBannerDelegate, LCAppModelDelegate {
 
                         }
                     } else {
-                        Button("Help", systemImage: "questionmark") {
+                        // P2-19: extract hardcoded user-visible string.
+                        Button("lc.common.help".loc, systemImage: "questionmark") {
                             helpPresent = true
                         }
                     }

@@ -409,7 +409,24 @@
         completetionHandler(NO, @"lc.signer.noCertificateFoundErr");
         return;
     }
-    
+
+    // P2-18: incremental signing cache. If the executable is
+    // already signed with the current cert AND its content hash
+    // matches the cached hash, skip ZSigner entirely. A cache hit
+    // here is what makes re-launching a 1 GB game a sub-second
+    // operation instead of a multi-minute re-sign.
+    NSString *certSHA = [LCIncrementalSigningCache sha256OfData:LCUtils.certificateData];
+    NSString *containerFolder = self.dataUUID ?: @"";
+    if ([LCIncrementalSigningCache isCachedForBundleID:self.bundleIdentifier()
+                                         containerFolder:containerFolder
+                                          executablePath:executablePath
+                                                 certSHA:certSHA]
+        && checkCodeSignature(executablePath.UTF8String)) {
+        [NSUserDefaults.standardUserDefaults removeObjectForKey:@"SigningInProgress"];
+        completetionHandler(YES, nil);
+        return;
+    }
+
     // Sign app if JIT-less is set up
         NSURL *appPathURL = [NSURL fileURLWithPath:appPath];
             void (^signCompletionHandler)(BOOL success, NSError *error)  = ^(BOOL success, NSError *_Nullable error) {
@@ -420,15 +437,22 @@
                     } else {
                         bool signatureValid = checkCodeSignature(executablePath.UTF8String);
                         if(signatureValid) {
+                            // P2-18: record the successful sign so
+                            // future launches hit the cache.
+                            [LCIncrementalSigningCache markSignedForBundleID:self.bundleIdentifier()
+                                                                containerFolder:containerFolder
+                                                                 executablePath:executablePath
+                                                                        certSHA:certSHA
+                                                                        patchRev:[info[@"LCPatchRevision"] integerValue]];
                             completetionHandler(YES, [error localizedDescription]);
                         } else {
                             completetionHandler(NO, @"lc.signer.latestCertificateInvalidErr");
                         }
                     }
-                    
+
                 });
             };
-            
+
             __block NSProgress *progress = [LCUtils signAppBundleWithZSign:appPathURL completionHandler:signCompletionHandler];
 
             if (progress) {
