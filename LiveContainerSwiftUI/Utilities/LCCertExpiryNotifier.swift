@@ -39,6 +39,7 @@ public final class LCCertExpiryNotifier {
     public static let shared = LCCertExpiryNotifier()
 
     public static let warnWithin: TimeInterval = 48 * 3600 // 48 hours
+    public static let notificationId = "lc.cert.expiry"
 
     private let suiteName = LCSharedUtils.appGroupID() ?? ""
     private let pwdKey = "LCCertificatePassword"
@@ -50,6 +51,32 @@ public final class LCCertExpiryNotifier {
         Task.detached(priority: .background) { [weak self] in
             guard let self else { return }
             await self.check()
+        }
+    }
+
+    /// Schedule a local notification if the cert is within the
+    /// 48h warning window. Called from settings after the user
+    /// imports or changes their cert. Public so views can call
+    /// it as `LCCertExpiryNotifier.schedule(p12Data:)`.
+    public static func schedule(p12Data: Data) {
+        Task { @MainActor in
+            await LCCertExpiryNotifier.shared.scheduleInternal(p12Data: p12Data)
+        }
+    }
+
+    @MainActor
+    private func scheduleInternal(p12Data: Data) async {
+        guard !suiteName.isEmpty,
+              let defaults = UserDefaults(suiteName: suiteName),
+              let pwd = defaults.string(forKey: pwdKey),
+              let notAfter = LCCertExpiryParser.notAfter(forP12: p12Data, password: pwd) else {
+            return
+        }
+        let now = Date()
+        let interval = notAfter.timeIntervalSince(now)
+        defaults.set(notAfter.timeIntervalSince1970, forKey: lastNotAfterKey)
+        if interval <= Self.warnWithin {
+            LCCertExpiryNotifier.presentNotification(notAfter: notAfter)
         }
     }
 
@@ -84,7 +111,7 @@ public final class LCCertExpiryNotifier {
             f.timeStyle = .short
             content.body = "lc.certExpiry.warning.body %@".localizeWithFormat(f.string(from: notAfter))
             content.sound = .default
-            let req = UNNotificationRequest(identifier: "lc.cert.expiry",
+            let req = UNNotificationRequest(identifier: LCCertExpiryNotifier.notificationId,
                                             content: content,
                                             trigger: nil)
             center.add(req, withCompletionHandler: nil)
@@ -143,9 +170,10 @@ enum LCCertExpiryParser {
         // tbsCertificate SEQUENCE
         guard let tbs = readTLV(der, &i, expectedTag: 0x30) else { return nil }
         // TBS body
+        let tbsEnd = tbs.startIndex + tbs.value.count
         var t = tbs.startIndex
         // optional [0] EXPLICIT Version (0xA0)
-        if t < tbs.endIndex, der[t] == 0xA0 {
+        if t < tbsEnd, der[t] == 0xA0 {
             if readTLV(der, &t, expectedTag: 0xA0) == nil { return nil }
         }
         // serialNumber INTEGER (0x02)
