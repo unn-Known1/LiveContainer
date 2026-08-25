@@ -287,7 +287,10 @@ final class LCStorageManagementModel: ObservableObject {
         }
 
         var totalSize: Int64 = 0
-        for case let fileURL as URL in enumerator {
+        // Swift 6 (Xcode 26.2): makeIterator() on FileManager.DirectoryEnumerator
+        // isn't available from async contexts, so materialize via allObjects
+        // (which uses AnyIterator) before iterating.
+        for case let fileURL as URL in enumerator.allObjects {
             try Task.checkCancellation()
 
             let resourceValues = try fileURL.resourceValues(forKeys: resourceKeys)
