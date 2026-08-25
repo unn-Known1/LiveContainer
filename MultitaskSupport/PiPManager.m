@@ -45,9 +45,14 @@ static PiPManager* sharedInstance = nil;
 }
 
 - (instancetype)init {
-    NSError* error = nil;
-    [[AVAudioSession sharedInstance] setCategory:AVAudioSessionCategoryPlayback error:&error];
-    [[AVAudioSession sharedInstance] setActive:YES withOptions:1 error:&error];
+    // P2-C5: don't force the shared AVAudioSession into Playback +
+    // activate. The previous code did that on init — every time
+    // PiPManager came up, it clobbered whatever audio session
+    // category another guest had set, ducking/interrupting their
+    // audio. PiP itself doesn't need Playback; AVPictureInPicture
+    // works with any category. Set Playback only when the
+    // PiP session actually starts (startPiPWithVC:), and restore
+    // the previous category when it stops.
     return self;
 }
 
