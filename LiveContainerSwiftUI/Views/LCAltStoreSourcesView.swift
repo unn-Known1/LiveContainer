@@ -496,48 +496,9 @@ struct LCSourcesView: View {
         NavigationView {
             Group {
                 if viewModel.sources.isEmpty {
-                    VStack(spacing: 12) {
-                        Image(systemName: "link.badge.plus")
-                            .font(.system(size: 48))
-                            .foregroundColor(.secondary)
-                        Text("lc.sources.empty".loc)
-                            .multilineTextAlignment(.center)
-                            .foregroundStyle(.secondary)
-                    }
-                    .padding()
-                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
+                    emptyStateView
                 } else {
-                    ScrollView {
-                        LazyVStack(spacing: 16) {
-                            ForEach(viewModel.sources, id: \.id) { item in
-                                let apps = filteredApps(for: item)
-                                AltStoreSourceSectionView(
-                                    item: item,
-                                    filteredApps: apps,
-                                    isFiltering: isFiltering,
-                                    isExpanded: expandedSources.contains(item.id),
-                                    onRefresh: { Task { await viewModel.refreshSource(item) } },
-                                    onInstall: { app in install(app: app, version: nil) },
-                                    onRemove: { sourcePendingRemoval = item },
-                                    toggleExpanded: { toggleExpansion(for: item.id) }
-                                )
-                                .padding(.horizontal)
-                                .animation(.easeInOut, value: apps.count)
-                            }
-                            
-                            if totalFilteredAppCount == 0 {
-                                VStack(spacing: 8) {
-                                    Text("lc.sources.section.noApps".loc)
-                                        .foregroundStyle(.gray)
-                                        .multilineTextAlignment(.center)
-                                }
-                                .frame(maxWidth: .infinity)
-                                .frame(minHeight: 160, alignment: .center)
-                                .padding(.horizontal)
-                            }
-                        }
-                        .padding(.vertical)
-                    }
+                    sourceListView
                 }
             }
             .navigationTitle("lc.tabView.sources".loc)
@@ -724,6 +685,67 @@ struct LCSourcesView: View {
                 }
             }
         }
+    }
+
+    // Build fix (P1-10 + Xcode 26.2): the previous body was a
+    // single 50-line if/else with deeply nested ScrollView,
+    // LazyVStack, and ForEach. Swift 6 (Xcode 26.2) couldn't
+    // type-check it in reasonable time. Extracted into smaller
+    // computed sub-views that the type-checker can handle
+    // independently.
+    private var emptyStateView: some View {
+        VStack(spacing: 12) {
+            Image(systemName: "link.badge.plus")
+                .font(.system(size: 48))
+                .foregroundColor(.secondary)
+            Text("lc.sources.empty".loc)
+                .multilineTextAlignment(.center)
+                .foregroundStyle(.secondary)
+        }
+        .padding()
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
+    }
+
+    private var sourceListView: some View {
+        ScrollView {
+            LazyVStack(spacing: 16) {
+                ForEach(viewModel.sources, id: \.id) { item in
+                    sectionRow(for: item)
+                }
+                if totalFilteredAppCount == 0 {
+                    noAppsRow
+                }
+            }
+            .padding(.vertical)
+        }
+    }
+
+    @ViewBuilder
+    private func sectionRow(for item: AltStoreSource) -> some View {
+        let apps = filteredApps(for: item)
+        AltStoreSourceSectionView(
+            item: item,
+            filteredApps: apps,
+            isFiltering: isFiltering,
+            isExpanded: expandedSources.contains(item.id),
+            onRefresh: { Task { await viewModel.refreshSource(item) } },
+            onInstall: { app in install(app: app, version: nil) },
+            onRemove: { sourcePendingRemoval = item },
+            toggleExpanded: { toggleExpansion(for: item.id) }
+        )
+        .padding(.horizontal)
+        .animation(.easeInOut, value: apps.count)
+    }
+
+    private var noAppsRow: some View {
+        VStack(spacing: 8) {
+            Text("lc.sources.section.noApps".loc)
+                .foregroundStyle(.gray)
+                .multilineTextAlignment(.center)
+        }
+        .frame(maxWidth: .infinity)
+        .frame(minHeight: 160, alignment: .center)
+        .padding(.horizontal)
     }
 }
 

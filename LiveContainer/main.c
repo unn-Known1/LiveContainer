@@ -7,10 +7,20 @@
 
 void* lcShared = 0;
 
+// P2-18 (build fix): forward declaration for the C-linkage entry
+// point in LCIncrementalSigningCache.m. Calling this here means
+// the host target registers the signing cache eagerly at
+// process start.
+extern void LCIncrementalSigningCache_register(void);
+
 int LiveContainerMainC(int argc, char *argv[]) {
     // P1-15: install BSD signal handlers so native crashes (SIGSEGV,
     // SIGABRT, etc.) surface as a JSON report on the next launch.
     LCSignalHandlerInstall();
+    // P2-18: register the incremental signing cache. Lazy init
+    // would also work, but explicit registration at process
+    // start avoids a one-launch delay on the first sign.
+    LCIncrementalSigningCache_register();
     const char *home = getenv("HOME");
 
     int (*lcMain)(int argc, char *argv[]) = 0;

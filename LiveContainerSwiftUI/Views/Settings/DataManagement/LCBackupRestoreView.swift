@@ -34,7 +34,7 @@ struct LCBackupRestoreView: View {
                 }
             }
             Section {
-                ForEach(sharedModel.apps, id: \.appInfo.bundleIdentifier) { app in
+                ForEach(sharedModel.apps, id: \.self) { app in
                     appRow(app)
                 }
             } header: {
