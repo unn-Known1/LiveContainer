@@ -32,6 +32,7 @@
 		E1292C132DCA46070065E12D /* main.c in Sources */ = {isa = PBXBuildFile; fileRef = E1292C032DCA3C160065E12D /* main.c */; };
 		E16D95742E1CD2980068EB63 /* LCMachOUtils.m in Sources */ = {isa = PBXBuildFile; fileRef = E16D94DE2E1CC8200068EB63 /* LCMachOUtils.m */; };
 		E16D95752E1CD2B90068EB63 /* LiveContainerShared.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = E1292BD62DCA3B660065E12D /* LiveContainerShared.framework */; };
+		17413FC52D9C0BAE00F3F928 /* LiveContainerSwiftUI.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 17413FB52D9C0BAE00F3F928 /* LiveContainerSwiftUI.framework */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -375,6 +376,7 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				17413FC52D9C0BAE00F3F928 /* LiveContainerSwiftUI.framework in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
