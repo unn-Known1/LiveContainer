@@ -127,7 +127,12 @@ void initDead10ccFix(void) {
             if ([path hasPrefix:ignoringPath]) {
                 // _rbs_process_log with %{public}@: Ignoring file %{public}@ because it is in an allowed path:  %{public}@
 //                NSLog(@"Ignoring file %@ because it is in an allowed path: %@", path, ignoringPath);
-                continue;
+                // P2-A2: the previous `continue` here continued the
+                // *outer* file-enumeration loop, skipping the suffix
+                // checks below and leaving -shm/-wal/-journal files
+                // to be processed. Use `goto` to break out of the
+                // inner loop and properly skip to the next file.
+                goto nextFile;
             }
         }
 
@@ -172,6 +177,7 @@ void initDead10ccFix(void) {
 
             int lock = fcntl(fd, F_GETLKPID, &fl);
             if (lock == -1) {
+                close(fd);
                 continue;
             }
 
@@ -180,7 +186,9 @@ void initDead10ccFix(void) {
 //                NSLog(@"Found locked file lock: %@", path);
                 [lockedFilePaths addObject:path];
             }
+            close(fd);
         }
+    nextFile:;
     }
 
     return lockedFilePaths;
