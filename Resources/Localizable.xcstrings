@@ -32738,6 +32738,142 @@
           }
         }
       }
+    },
+    "lc.backupRestore.title" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Backup & Restore"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "备份与恢复"
+          }
+        }
+      }
+    },
+    "lc.backupRestore.instructions" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Backups are stored in Documents/Backups/. Pick a .lcbk file to restore a container; the original folder name is preserved."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "备份文件位于 Documents/Backups/。选择 .lcbk 文件以恢复容器；原始文件夹名称会被保留。"
+          }
+        }
+      }
+    },
+    "lc.backupRestore.pickFile" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Pick .lcbk file to restore"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "选择 .lcbk 文件以恢复"
+          }
+        }
+      }
+    },
+    "lc.backupRestore.perAppBackup" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Per-container backup"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "按容器备份"
+          }
+        }
+      }
+    },
+    "lc.settings.backupSettings" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Backup settings"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "备份设置"
+          }
+        }
+      }
+    },
+    "lc.settings.backupRestore" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Backup & restore"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "备份与恢复"
+          }
+        }
+      }
+    },
+    "lc.settings.backupRestoreHeader" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Backup & Restore"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "备份与恢复"
+          }
+        }
+      }
+    },
+    "lc.settings.backupRestoreFooter" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Backups are written to Documents/Backups/. Cert data and passwords are excluded."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "备份文件位于 Documents/Backups/。证书数据和密码不会包含在备份中。"
+          }
+        }
+      }
     }
   },
   "version" : "1.0"

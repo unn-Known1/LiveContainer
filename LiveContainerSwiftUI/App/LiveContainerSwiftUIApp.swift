@@ -24,82 +24,85 @@ struct LiveContainerSwiftUIApp : SwiftUI.App {
         // multitask dock, PiPManager) observe these notifications.
         _ = LCMemoryPressureMonitor.shared
 
+        // P2-E: do the synchronous filesystem enumeration OFF the
+        // main thread. The previous code called
+        // fm.contentsOfDirectory + LCAppInfo(bundlePath:) for every
+        // .app on launch; on installs with hundreds of apps this
+        // blocked the launch screen for 5-10s. Move it to a
+        // detached Task and assign the results back on the main
+        // actor when done.
         let fm = FileManager()
-        var tempAppDataFolderNames : [String] = []
-        var tempTweakFolderNames : [String] = []
+        Task.detached(priority: .userInitiated) {
+            var tempAppDataFolderNames: [String] = []
+            var tempTweakFolderNames: [String] = []
+            var tempApps: [LCAppModel] = []
+            var tempHiddenApps: [LCAppModel] = []
+            var tempURLSchemes: Set<String> = DataManager.shared.model.multiLCStatus != 2 ? [] : []
 
-        var tempApps: [LCAppModel] = []
-        var tempHiddenApps: [LCAppModel] = []
-        var tempURLSchemes: Set<String>? = DataManager.shared.model.multiLCStatus != 2 ? Set() : nil
-
-        do {
-            // load apps
-            try fm.createDirectory(at: LCPath.bundlePath, withIntermediateDirectories: true)
-            let appDirs = try fm.contentsOfDirectory(atPath: LCPath.bundlePath.path)
-            for appDir in appDirs {
-                if !appDir.hasSuffix(".app") {
-                    continue
-                }
-                let newApp = LCAppInfo(bundlePath: "\(LCPath.bundlePath.path)/\(appDir)")!
-                newApp.relativeBundlePath = appDir
-                newApp.isShared = false
-                if newApp.isHidden {
-                    tempHiddenApps.append(LCAppModel(appInfo: newApp))
-                } else {
-                    tempApps.append(LCAppModel(appInfo: newApp))
-                    tempURLSchemes?.formUnion(newApp.urlSchemes() as! [String])
-                }
-            }
-            if LCPath.lcGroupDocPath != LCPath.docPath {
-                try fm.createDirectory(at: LCPath.lcGroupBundlePath, withIntermediateDirectories: true)
-                let appDirsShared = try fm.contentsOfDirectory(atPath: LCPath.lcGroupBundlePath.path)
-                for appDir in appDirsShared {
-                    if !appDir.hasSuffix(".app") {
-                        continue
-                    }
-                    let newApp = LCAppInfo(bundlePath: "\(LCPath.lcGroupBundlePath.path)/\(appDir)")!
+            do {
+                // load apps
+                try fm.createDirectory(at: LCPath.bundlePath, withIntermediateDirectories: true)
+                let appDirs = try fm.contentsOfDirectory(atPath: LCPath.bundlePath.path)
+                for appDir in appDirs {
+                    if !appDir.hasSuffix(".app") { continue }
+                    guard let newApp = LCAppInfo(bundlePath: "\(LCPath.bundlePath.path)/\(appDir)") else { continue }
                     newApp.relativeBundlePath = appDir
-                    newApp.isShared = true
+                    newApp.isShared = false
                     if newApp.isHidden {
                         tempHiddenApps.append(LCAppModel(appInfo: newApp))
                     } else {
                         tempApps.append(LCAppModel(appInfo: newApp))
-                        tempURLSchemes?.formUnion(newApp.urlSchemes() as! [String])
+                        tempURLSchemes.formUnion(newApp.urlSchemes() as? [String] ?? [])
                     }
                 }
-            }
-            // load document folders
-            try fm.createDirectory(at: LCPath.dataPath, withIntermediateDirectories: true)
-            let dataDirs = try fm.contentsOfDirectory(atPath: LCPath.dataPath.path)
-            for dataDir in dataDirs {
-                let dataDirUrl = LCPath.dataPath.appendingPathComponent(dataDir)
-                if !dataDirUrl.hasDirectoryPath {
-                    continue
+                if LCPath.lcGroupDocPath != LCPath.docPath {
+                    try fm.createDirectory(at: LCPath.lcGroupBundlePath, withIntermediateDirectories: true)
+                    let appDirsShared = try fm.contentsOfDirectory(atPath: LCPath.lcGroupBundlePath.path)
+                    for appDir in appDirsShared {
+                        if !appDir.hasSuffix(".app") { continue }
+                        guard let newApp = LCAppInfo(bundlePath: "\(LCPath.lcGroupBundlePath.path)/\(appDir)") else { continue }
+                        newApp.relativeBundlePath = appDir
+                        newApp.isShared = true
+                        if newApp.isHidden {
+                            tempHiddenApps.append(LCAppModel(appInfo: newApp))
+                        } else {
+                            tempApps.append(LCAppModel(appInfo: newApp))
+                            tempURLSchemes.formUnion(newApp.urlSchemes() as? [String] ?? [])
+                        }
+                    }
                 }
-                tempAppDataFolderNames.append(dataDir)
-            }
-            
-            // load tweak folders
-            try fm.createDirectory(at: LCPath.tweakPath, withIntermediateDirectories: true)
-            let tweakDirs = try fm.contentsOfDirectory(atPath: LCPath.tweakPath.path)
-            for tweakDir in tweakDirs {
-                let tweakDirUrl = LCPath.tweakPath.appendingPathComponent(tweakDir)
-                if !tweakDirUrl.hasDirectoryPath {
-                    continue
+                // load document folders
+                try fm.createDirectory(at: LCPath.dataPath, withIntermediateDirectories: true)
+                let dataDirs = try fm.contentsOfDirectory(atPath: LCPath.dataPath.path)
+                for dataDir in dataDirs {
+                    let dataDirUrl = LCPath.dataPath.appendingPathComponent(dataDir)
+                    if !dataDirUrl.hasDirectoryPath { continue }
+                    tempAppDataFolderNames.append(dataDir)
                 }
-                let folderName = tweakDir.hasSuffix(".disabled") ? String(tweakDir.dropLast(".disabled".count)) : tweakDir
-                tempTweakFolderNames.append(folderName)
+                // load tweak folders
+                try fm.createDirectory(at: LCPath.tweakPath, withIntermediateDirectories: true)
+                let tweakDirs = try fm.contentsOfDirectory(atPath: LCPath.tweakPath.path)
+                for tweakDir in tweakDirs {
+                    let tweakDirUrl = LCPath.tweakPath.appendingPathComponent(tweakDir)
+                    if !tweakDirUrl.hasDirectoryPath { continue }
+                    let folderName = tweakDir.hasSuffix(".disabled") ? String(tweakDir.dropLast(".disabled".count)) : tweakDir
+                    tempTweakFolderNames.append(folderName)
+                }
+            } catch {
+                NSLog("[LC] error: \(error)")
             }
-        } catch {
-            NSLog("[LC] error:\(error)")
-        }
-        
-        DataManager.shared.model.apps = tempApps
-        DataManager.shared.model.hiddenApps = tempHiddenApps
-        DataManager.shared.model.appDataFolderNames = tempAppDataFolderNames
-        DataManager.shared.model.tweakFolderNames = tempTweakFolderNames
-        if let tempURLSchemes {
-            UserDefaults.lcShared().set(Array(tempURLSchemes), forKey: "LCGuestURLSchemes")
+
+            // Hand the results back to the main actor.
+            await MainActor.run {
+                let model = DataManager.shared.model
+                model.apps = tempApps
+                model.hiddenApps = tempHiddenApps
+                model.appDataFolderNames = tempAppDataFolderNames
+                model.tweakFolderNames = tempTweakFolderNames
+                if !tempURLSchemes.isEmpty {
+                    UserDefaults.lcShared().set(Array(tempURLSchemes), forKey: "LCGuestURLSchemes")
+                }
+            }
         }
     }
     
