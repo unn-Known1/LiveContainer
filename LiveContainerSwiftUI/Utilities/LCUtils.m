@@ -3,6 +3,7 @@
 @import UIKit;
 @import UniformTypeIdentifiers;
 @import Security;
+#import <dlfcn.h>
 
 #import "LCUtils.h"
 #import "../../LiveContainer/LCSharedUtils.h"
@@ -242,7 +243,7 @@
     dispatch_semaphore_t sema = dispatch_semaphore_create(0);
     __block bool signSuccess = false;
     __block NSError* signError = nil;
-    
+
     // Sign the test app bundle
 
     [LCUtils signFilesWithZSignWithURLs:@[[NSURL fileURLWithPath:tmpLibPath]]
@@ -253,15 +254,35 @@
     }];
 
     dispatch_semaphore_wait(sema, DISPATCH_TIME_FOREVER);
-    
+
     dispatch_async(dispatch_get_main_queue(), ^{
         if(!signSuccess) {
             completionHandler(NO, signError);
-        } else if (checkCodeSignature([tmpLibPath UTF8String])) {
-            completionHandler(YES, signError);
-        } else {
-            completionHandler(NO, [NSError errorWithDomain:NSBundle.mainBundle.bundleIdentifier code:2 userInfo:@{NSLocalizedDescriptionKey: @"lc.signer.latestCertificateInvalidErr"}]);
+            [NSFileManager.defaultManager removeItemAtPath:tmpLibPath error:nil];
+            return;
         }
+        if (!checkCodeSignature([tmpLibPath UTF8String])) {
+            completionHandler(NO, [NSError errorWithDomain:NSBundle.mainBundle.bundleIdentifier code:2 userInfo:@{NSLocalizedDescriptionKey: @"lc.signer.latestCertificateInvalidErr"}]);
+            [NSFileManager.defaultManager removeItemAtPath:tmpLibPath error:nil];
+            return;
+        }
+        // P2-A2: actually load the test dylib and check that its
+        // constructor set LC_JITLESS_TEST_LOADED. The previous code
+        // only checked the signature; a sign-then-fail-to-load
+        // scenario (e.g. entitlement mismatch) was reported as
+        // success.
+        unsetenv("LC_JITLESS_TEST_LOADED");
+        void *handle = dlopen([tmpLibPath UTF8String], RTLD_NOW);
+        if (handle) {
+            dlclose(handle);
+        }
+        BOOL loaded = (getenv("LC_JITLESS_TEST_LOADED") != NULL);
+        if (!loaded) {
+            completionHandler(NO, [NSError errorWithDomain:NSBundle.mainBundle.bundleIdentifier code:3 userInfo:@{NSLocalizedDescriptionKey: @"lc.signer.jitlessTestLoadFailed"}]);
+            [NSFileManager.defaultManager removeItemAtPath:tmpLibPath error:nil];
+            return;
+        }
+        completionHandler(YES, signError);
         [NSFileManager.defaultManager removeItemAtPath:tmpLibPath error:nil];
     });
 }
