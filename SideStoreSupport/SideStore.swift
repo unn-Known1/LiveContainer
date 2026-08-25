@@ -90,12 +90,17 @@ class RefreshHandler: NSObject, RefreshServer {
         
         if listener == nil {
             guard let listener = startAnonymousListener(self) else {
-                return
+                // P1-13: surface the failure to the caller instead of
+                // silently returning. The previous implementation
+                // returned without resuming the continuation, so the
+                // intent hung or reported "All apps refreshed" with
+                // nothing actually refreshed.
+                throw NSError(domain: "SideStore", code: 1, userInfo: [NSLocalizedDescriptionKey: "Failed to start XPC listener for SideStore refresh."])
             }
             self.listener = listener
         }
         guard let listener = self.listener else {
-            return
+            throw NSError(domain: "SideStore", code: 1, userInfo: [NSLocalizedDescriptionKey: "SideStore XPC listener unavailable."])
         }
 
         // launch SideStore if it's not running
@@ -153,11 +158,25 @@ class RefreshHandler: NSObject, RefreshServer {
             }
         }
         self.client?.refreshAllApps(withIdentifier: identifier, mangledTypeName: mangledName)
-        
+
+        // P1-13: add a 60-second timeout to the refresh phase. The
+        // previous implementation waited indefinitely for the client
+        // to call finish(), so a stuck or crashed SideStore left the
+        // intent hanging forever. Match the launch-phase timeout
+        // pattern (300s) but use a shorter 60s since the refresh
+        // itself is a quick operation once the client is connected.
         try await withUnsafeThrowingContinuation { c in
             self.c = c
+            DispatchQueue.main.asyncAfter(deadline: .now() + 60) {
+                if self.c != nil {
+                    NSLog("[SideStore] refresh timed out after 60s — client never called finish()")
+                    let timeoutError = NSError(domain: "SideStore", code: 1, userInfo: [NSLocalizedDescriptionKey: "SideStore refresh timed out after 60 seconds."])
+                    self.c?.resume(throwing: timeoutError)
+                    self.c = nil
+                }
+            }
         }
-        
+
     }
     
     func updateProgress(_ value: Double) {
