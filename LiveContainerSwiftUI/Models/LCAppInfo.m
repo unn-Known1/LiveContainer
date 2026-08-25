@@ -418,7 +418,7 @@
     // operation instead of a multi-minute re-sign.
     NSString *certSHA = [LCIncrementalSigningCache sha256OfData:LCUtils.certificateData];
     NSString *containerFolder = self.dataUUID ?: @"";
-    if ([LCIncrementalSigningCache isCachedForBundleID:self.bundleIdentifier()
+    if ([LCIncrementalSigningCache isCachedForBundleID:self.bundleIdentifier
                                          containerFolder:containerFolder
                                           executablePath:executablePath
                                                  certSHA:certSHA]
@@ -440,7 +440,7 @@
                         if(signatureValid) {
                             // P2-18: record the successful sign so
                             // future launches hit the cache.
-                            [LCIncrementalSigningCache markSignedForBundleID:self.bundleIdentifier()
+                            [LCIncrementalSigningCache markSignedForBundleID:self.bundleIdentifier
                                                                 containerFolder:containerFolder
                                                                  executablePath:executablePath
                                                                         certSHA:certSHA
