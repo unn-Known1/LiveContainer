@@ -4,6 +4,7 @@ import UIKit
 final class ShareExtensionHandler: UIViewController {
     private let viewModel = ShareExtensionViewModel()
     private var host: UIHostingController<ShareExtensionRootView>?
+    private var didLoadPayload = false
 
     override func viewDidLoad() {
         super.viewDidLoad()
@@ -20,10 +21,19 @@ final class ShareExtensionHandler: UIViewController {
             host.view.bottomAnchor.constraint(equalTo: view.bottomAnchor)
         ])
         host.didMove(toParent: self)
-        viewModel.loadPayload(from: extensionContext)
+        // P2-C3: previously loadPayload was called from BOTH
+        // viewDidLoad and beginRequest, racing. Guard with
+        // didLoadPayload; the first call wins.
+        loadPayloadOnce()
     }
 
     override func beginRequest(with context: NSExtensionContext) {
-        viewModel.loadPayload(from: context)
+        loadPayloadOnce(context: context)
+    }
+
+    private func loadPayloadOnce(context: NSExtensionContext? = nil) {
+        if didLoadPayload { return }
+        didLoadPayload = true
+        viewModel.loadPayload(from: context ?? extensionContext)
     }
 }
