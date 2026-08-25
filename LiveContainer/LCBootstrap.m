@@ -549,15 +549,40 @@ static NSString* invokeAppMain(NSString *selectedApp, NSString *selectedContaine
         if (!isJitEnabled) {
             return @"JIT is required to run 32-bit apps.";
         }
-        
-        NSString *selected32BitLayer = [lcSharedDefaults stringForKey:@"selected32BitLayer"];
+
+        // P2-D: per-app 32-bit layer selection. The previous code
+        // used a single global `selected32BitLayer` UserDefaults
+        // key, so every 32-bit app on the device had to share
+        // one translation layer. Allow an optional per-app override
+        // via `<bundleID>32BitLayer` (e.g. com.example.MyApp32BitLayer).
+        // Falls back to the global setting if the per-app one is
+        // unset.
+        NSString *bundleID = guestAppInfo[@"CFBundleIdentifier"];
+        NSString *perAppKey = bundleID ? [NSString stringWithFormat:@"%@32BitLayer", bundleID] : nil;
+        NSString *selected32BitLayer = (perAppKey ? [lcSharedDefaults stringForKey:perAppKey] : nil);
+        if (selected32BitLayer.length == 0) {
+            selected32BitLayer = [lcSharedDefaults stringForKey:@"selected32BitLayer"];
+        }
+        // P2-D: validate the layer exists and is a 32-bit bundle
+        // before using it. The previous code did no validation;
+        // a stale path or non-bundle directory would crash
+        // downstream when the framework tried to dlopen the
+        // nonexistent executable.
         if(!selected32BitLayer || [selected32BitLayer length] == 0) {
             appError = @"No 32-bit translation layer installed";
             NSLog(@"[LCBootstrap] %@", appError);
             *path = oldPath;
             return appError;
         }
-        NSBundle *selected32bitLayerBundle = [NSBundle bundleWithPath:[docPath stringByAppendingPathComponent:selected32BitLayer]]; //TODO make it user friendly;
+        NSString *layerFullPath = [docPath stringByAppendingPathComponent:selected32BitLayer];
+        BOOL isDir = NO;
+        if (![[NSFileManager defaultManager] fileExistsAtPath:layerFullPath isDirectory:&isDir] || !isDir) {
+            appError = [NSString stringWithFormat:@"32-bit layer path %@ is missing or not a directory", layerFullPath];
+            NSLog(@"[LCBootstrap] %@", appError);
+            *path = oldPath;
+            return appError;
+        }
+        NSBundle *selected32bitLayerBundle = [NSBundle bundleWithPath:layerFullPath];
         if(!selected32bitLayerBundle) {
             appError = @"The specified LiveExec32.app path is not found";
             NSLog(@"[LCBootstrap] %@", appError);
