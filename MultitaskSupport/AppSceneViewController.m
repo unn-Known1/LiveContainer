@@ -391,11 +391,11 @@
         // guest actually sees didEnterBackground when minimized.
         [self.presenter.scene updateSettingsWithBlock:^(UIMutableApplicationSceneSettings *settings) {
             settings.foreground = enabled ? NO : YES;
-            // UISceneDeactivationReasonAll is not a public iOS SDK
-            // constant; bitwise-NOT gives us "all bits set" which
-            // is equivalent when assigning to the bitfield-backed
-            // deactivationReasons property.
-            settings.deactivationReasons = enabled ? (UISceneDeactivationReason)~0 : 0;
+            // The deactivationReasons property is a public NSUInteger
+            // bitfield in the public SDK. UISceneDeactivationReason* enum
+            // constants live in a private SPI header. ~0 is "all bits
+            // set", which the bitfield treats as 'all'.
+            settings.deactivationReasons = enabled ? (NSUInteger)~0 : 0;
         }];
         return;
     }
