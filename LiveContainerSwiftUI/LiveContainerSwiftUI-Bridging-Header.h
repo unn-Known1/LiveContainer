@@ -10,7 +10,6 @@
 #include "../LiveContainer/LCSharedUtils.h"
 #include "../LiveContainer/LCSignalHandler.h"
 #include "Utilities/LCUtils.h"
-#include "Utilities/LCCertExpiryParser.h"
 #include "Utilities/unarchive.h"
 #include "../MultitaskSupport/AppSceneViewController.h"
 #include "../MultitaskSupport/DecoratedAppSceneViewController.h"
