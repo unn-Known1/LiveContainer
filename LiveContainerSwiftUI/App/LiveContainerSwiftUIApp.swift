@@ -17,6 +17,13 @@ struct LiveContainerSwiftUIApp : SwiftUI.App {
         // write happens here, on the main thread.
         _ = LCSignalHandlerDumpAndClearReport()
 
+        // P1-11: install the memory pressure monitor. The shared
+        // singleton registers for didReceiveMemoryWarningNotification
+        // and broadcasts .lcMemoryPressureShouldStopPiP /
+        // .lcMemoryPressureShouldEvictLRU. Scenes that care (the
+        // multitask dock, PiPManager) observe these notifications.
+        _ = LCMemoryPressureMonitor.shared
+
         let fm = FileManager()
         var tempAppDataFolderNames : [String] = []
         var tempTweakFolderNames : [String] = []

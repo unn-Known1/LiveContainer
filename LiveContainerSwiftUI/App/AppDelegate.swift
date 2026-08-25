@@ -81,6 +81,19 @@ public class ViewAppIntentHandler: NSObject, ViewAppIntentHandling
 {
     public func provideAppOptionsCollection(for intent: ViewAppIntent, with completion: @escaping (INObjectCollection<App>?, Error?) -> Void)
     {
-        completion(INObjectCollection(items:[]), nil)
+        // P1-14: wire real apps into Siri. The previous code returned
+        // an empty INObjectCollection, so 'Hey Siri, open <app>' could
+        // never resolve. Now we scan DataManager.shared.model.apps
+        // (the in-memory installed-app list, populated at launch) and
+        // return each non-hidden app as a Siri option.
+        let installed = DataManager.shared.model.apps
+        let apps: [App] = installed.compactMap { model in
+            let info = model.appInfo
+            guard !info.isHidden else { return nil }
+            let bid = info.bundleIdentifier() ?? UUID().uuidString
+            let display = info.displayName() ?? bid
+            return App(identifier: bid, display: display)
+        }
+        completion(INObjectCollection(items: apps), nil)
     }
 }
