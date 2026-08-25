@@ -578,6 +578,11 @@ struct LCSettingsView: View {
         LCUtils.appGroupUserDefault.set(NSDate.now, forKey: "LCCertificateUpdateDate")
         certificateDataFound = true
 
+        // P0-5: schedule a local notification 48h before the
+        // certificate's notAfter date. Without this, free-cert
+        // users hit silent launch failures when the cert expires.
+        LCCertExpiryNotifier.schedule(p12Data: certificateData)
+
         UserDefaults.standard.set(LCSharedUtils.appGroupID(), forKey: "LCAppGroupID")
     }
     
@@ -656,6 +661,8 @@ struct LCSettingsView: View {
         LCUtils.appGroupUserDefault.set(password, forKey: "LCCertificatePassword")
         LCUtils.appGroupUserDefault.set(NSDate.now, forKey: "LCCertificateUpdateDate")
         certificateDataFound = true
+        // P0-5: re-schedule the cert-expiry notification.
+        LCCertExpiryNotifier.schedule(p12Data: certificateData)
     }
     
     func removeCertificate() async {
@@ -667,6 +674,11 @@ struct LCSettingsView: View {
         LCUtils.appGroupUserDefault.set(nil, forKey: "LCCertificatePassword")
         LCUtils.appGroupUserDefault.set(nil, forKey: "LCCertificateUpdateDate")
         certificateDataFound = false
+        // P0-5: also cancel the pending cert-expiry notification
+        // when the user removes their cert.
+        UNUserNotificationCenter.current().removePendingNotificationRequests(
+            withIdentifiers: [LCCertExpiryNotifier.notificationId]
+        )
 
         UserDefaults.standard.set(nil, forKey: "LCAppGroupID")
     }
