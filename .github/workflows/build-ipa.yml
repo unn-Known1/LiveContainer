@@ -1,0 +1,151 @@
+name: Build LiveContainer IPA
+
+on:
+  workflow_dispatch:
+    inputs:
+      configuration:
+        description: "Build configuration"
+        required: true
+        default: "Release"
+        type: choice
+        options: [Debug, Release]
+      export_method:
+        description: "Export method (signing)"
+        required: true
+        default: "ad-hoc"
+        type: choice
+        options: [development, ad-hoc, enterprise, app-store]
+      bundle_id_prefix:
+        description: "Bundle ID prefix override (optional)"
+        required: false
+        default: ""
+        type: string
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+
+concurrency:
+  group: build-ipa-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  init-submodules:
+    name: Init submodules
+    runs-on: ubuntu-22.04
+    outputs:
+      hash: ${{ steps.hash.outputs.value }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+          fetch-depth: 1
+      - id: hash
+        run: |
+          SUBMODULE_HASH=$(git submodule status | sha256sum | cut -c1-12)
+          echo "value=$SUBMODULE_HASH" >> "$GITHUB_OUTPUT"
+
+  build:
+    name: Build .ipa (${{ matrix.scheme }})
+    runs-on: macos-14
+    needs: init-submodules
+    strategy:
+      fail-fast: false
+      matrix:
+        scheme: [LiveContainer, LiveContainer-LC2]
+        include:
+          - scheme: LiveContainer
+            sdk: iphoneos
+            destination: "generic/platform=iOS"
+          - scheme: LiveContainer-LC2
+            sdk: iphoneos
+            destination: "generic/platform=iOS"
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+          fetch-depth: 1
+
+      - name: Show Xcode version
+        run: xcodebuild -version
+
+      - name: List schemes
+        run: xcodebuild -list -project LiveContainer.xcodeproj
+
+      - name: Select Xcode (15.x)
+        run: sudo xcode-select -s /Applications/Xcode_15.4.app/Contents/Developer
+
+      - name: Build archive (no signing)
+        env:
+          CONFIGURATION: ${{ inputs.configuration || 'Release' }}
+        run: |
+          set -euxo pipefail
+          xcodebuild \
+            -project LiveContainer.xcodeproj \
+            -scheme "${{ matrix.scheme }}" \
+            -configuration "${CONFIGURATION}" \
+            -sdk "${{ matrix.sdk }}" \
+            -destination "${{ matrix.destination }}" \
+            -derivedDataPath build \
+            CODE_SIGNING_ALLOWED=NO \
+            CODE_SIGNING_REQUIRED=NO \
+            CODE_SIGN_IDENTITY="" \
+            ONLY_ACTIVE_ARCH=NO \
+            clean archive \
+            | xcpretty || (echo "::warning::xcpretty not found, falling back to plain output"; xcodebuild -project LiveContainer.xcodeproj -scheme "${{ matrix.scheme }}" -configuration "${CONFIGURATION}" -sdk "${{ matrix.sdk }}" -destination "${{ matrix.destination }}" -derivedDataPath build CODE_SIGNING_ALLOWED=NO clean archive)
+
+      - name: Locate .xcarchive
+        id: archive
+        run: |
+          ARCHIVE=$(find build -name "*.xcarchive" -type d | head -n 1)
+          if [ -z "$ARCHIVE" ]; then
+            echo "::error::no .xcarchive produced"
+            exit 1
+          fi
+          echo "archive=$ARCHIVE" >> "$GITHUB_OUTPUT"
+
+      - name: Write ExportOptions.plist
+        run: |
+          cat > ExportOptions.plist <<EOF
+          <?xml version="1.0" encoding="UTF-8"?>
+          <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+          <plist version="1.0">
+          <dict>
+              <key>method</key>
+              <string>${{ inputs.export_method || 'ad-hoc' }}</string>
+              <key>signingStyle</key>
+              <string>manual</string>
+              <key>compileBitcode</key>
+              <false/>
+              <key>thinning</key>
+              <string>none</string>
+              <key>stripSwiftSymbols</key>
+              <true/>
+          </dict>
+          </plist>
+          EOF
+
+      - name: Export .ipa
+        run: |
+          set -euxo pipefail
+          xcodebuild \
+            -exportArchive \
+            -archivePath "${{ steps.archive.outputs.archive }}" \
+            -exportPath build/ipa \
+            -exportOptionsPlist ExportOptions.plist
+          ls -la build/ipa
+
+      - name: Upload .ipa artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: LiveContainer-${{ matrix.scheme }}-${{ inputs.configuration || 'Release' }}
+          path: build/ipa/*.ipa
+          if-no-files-found: error
+          retention-days: 14
+
+      - name: Upload .xcarchive
+        uses: actions/upload-artifact@v4
+        with:
+          name: LiveContainer-${{ matrix.scheme }}-archive
+          path: ${{ steps.archive.outputs.archive }}
+          retention-days: 7
