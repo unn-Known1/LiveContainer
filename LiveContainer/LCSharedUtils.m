@@ -434,19 +434,12 @@ NSString* FBSOpenApplicationOptionKeyPayloadURL = @"__PayloadURL";
 }
 @end
 
-// P2-18: wire the incremental signing cache so the very first
-// sign on a fresh install populates it; subsequent signs hit
-// the cache. See LCIncrementalSigningCache.h for the storage
-// format and the trigger conditions.
-#import "LCIncrementalSigningCache.h"
-
-@interface LCSharedUtils (IncrementalSigningCacheHook)
-@end
-
-@implementation LCSharedUtils (IncrementalSigningCacheHook)
-
-+ (void)load {
-    [LCIncrementalSigningCache registerOnAppGroupID:[LCSharedUtils appGroupID]];
-}
-
-@end
+// P2-18: incremental signing cache registration. The cache lives
+// in the LiveContainer app target, not the LiveContainerShared
+// framework — so we cannot reference it from a +load method on
+// LCSharedUtils (it would be a link error). Instead, the host
+// main.c calls LCIncrementalSigningCache_register() early in
+// process startup. Keeping this comment here as a pointer for
+// future readers, and to mark the (corrected) original intent.
+// See LCIncrementalSigningCache.h for the storage format and
+// the trigger conditions.
