@@ -297,8 +297,12 @@ struct LCAppListView : View, LCAppBannerDelegate, LCAppModelDelegate {
         } message: {
             Text(errorInfo)
         }
-        .betterFileImporter(isPresented: $choosingIPA, types: [.ipa, .tipa], multiple: false, callback: { fileUrls in
-            Task { await startInstallApp(fileUrls[0]) }
+        .betterFileImporter(isPresented: $choosingIPA, types: [.ipa, .tipa], multiple: true, callback: { fileUrls in
+            // P2-C2: accept multiple IPAs. Iterate the InstallQueue
+            // for each so they all eventually run, in selection order.
+            for url in fileUrls {
+                LCInstallQueue.shared.enqueueFromNotification(url)
+            }
         }, onDismiss: {
             choosingIPA = false
         })
