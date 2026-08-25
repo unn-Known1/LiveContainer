@@ -177,7 +177,8 @@ struct LCTweakFolderView : View {
                             Label("lc.tweakView.newFolder".loc, systemImage: "folder.badge.plus")
                         }
                     } label: {
-                        Label("add", systemImage: "plus")
+                        // P2-19: extract hardcoded user-visible string.
+                        Label("lc.common.add".loc, systemImage: "plus")
                     }
                 } else {
                     ProgressView().progressViewStyle(.circular)
