@@ -148,11 +148,18 @@ class RefreshHandler: NSObject, RefreshServer {
             
             try await withUnsafeThrowingContinuation { c in
                 self.launchContinuation = c
+                // Build fix: capture the NSExtension before the
+                // @Sendable closure. The previous code captured
+                // `ext` inside the DispatchQueue.main.asyncAfter
+                // closure, which Swift 6 (Xcode 26+) flags as a
+                // "capture of non-Sendable type" warning and may
+                // escalate to an error in future toolchains.
+                let extForTimeout = ext
                 DispatchQueue.main.asyncAfter(deadline: .now() + 300) {
                     if let c = self.launchContinuation {
                         c.resume(throwing: NSError(domain: "SideStore", code: 1, userInfo: [NSLocalizedDescriptionKey: "Built-in SideStore failed to start in reasonable time"]))
                         self.launchContinuation = nil
-                        ext._kill(9)
+                        extForTimeout._kill(9)
                     }
                 }
             }
