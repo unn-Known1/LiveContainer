@@ -18,6 +18,26 @@ static NSString * const kCacheKey = @"LCIncrementalSigningCache";
     (void)appGroupID;
 }
 
+// P2-18 (build fix): C-linkage entry point. The host target calls
+// this from main() before any other code runs. The original
+// +load-style hook on LCSharedUtils broke the link because the
+// LCIncrementalSigningCache class is in the LiveContainer target
+// while LCSharedUtils compiles into the LiveContainerShared
+// framework — a cross-target reference.
+#ifdef __cplusplus
+extern "C" {
+#endif
+void LCIncrementalSigningCache_register(void) {
+    // Read the app group from standard defaults. Best-effort: if
+    // it isn't set yet, the cache is a no-op and lazily
+    // self-registers on the first read.
+    NSString *gid = [[NSUserDefaults standardUserDefaults] stringForKey:@"LCAppGroupID"];
+    [LCIncrementalSigningCache registerOnAppGroupID:gid];
+}
+#ifdef __cplusplus
+}
+#endif
+
 + (NSUserDefaults *)defaults {
     NSString *gid = [[NSUserDefaults standardUserDefaults] stringForKey:@"LCAppGroupID"];
     if (gid.length == 0) {
