@@ -217,8 +217,24 @@ class LCAppModel: ObservableObject, Hashable {
             if uiSelectedContainer == nil {
                 uiSelectedContainer = newContainer;
             }
+            // P0-5: dedupe keychain group. The previous code used
+            // `Int.random(in:)` with no collision check; two auto-created
+            // containers could end up sharing the same keychain group,
+            // silently leaking credentials across them. The manual
+            // path in LCAppSettingsView already does this dedupe (see
+            // lines around 494-504 in that file); reuse the same pattern.
+            var keychainGroupSet: Set<Int> = Set(minimumCapacity: SharedModel.keychainAccessGroupCount)
+            for i in 0..<SharedModel.keychainAccessGroupCount {
+                keychainGroupSet.insert(i)
+            }
+            for container in uiContainers {
+                keychainGroupSet.remove(container.keychainGroupId)
+            }
+            // If we somehow exhausted all groups (the container we just
+            // appended had a bogus keychainGroupId of -1), fall back to 0.
+            let freeKeyChainGroup = keychainGroupSet.randomElement() ?? 0
             appInfo.containers = uiContainers;
-            newContainer.makeLCContainerInfoPlist(appIdentifier: appInfo.bundleIdentifier()!, keychainGroupId: Int.random(in: 0..<SharedModel.keychainAccessGroupCount))
+            newContainer.makeLCContainerInfoPlist(appIdentifier: appInfo.bundleIdentifier()!, keychainGroupId: freeKeyChainGroup)
             appInfo.dataUUID = newName
             uiDefaultDataFolder = newName
         }
