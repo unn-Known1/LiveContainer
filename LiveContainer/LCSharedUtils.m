@@ -433,3 +433,20 @@ NSString* FBSOpenApplicationOptionKeyPayloadURL = @"__PayloadURL";
     return result;
 }
 @end
+
+// P2-18: wire the incremental signing cache so the very first
+// sign on a fresh install populates it; subsequent signs hit
+// the cache. See LCIncrementalSigningCache.h for the storage
+// format and the trigger conditions.
+#import "LCIncrementalSigningCache.h"
+
+@interface LCSharedUtils (IncrementalSigningCacheHook)
+@end
+
+@implementation LCSharedUtils (IncrementalSigningCacheHook)
+
++ (void)load {
+    [LCIncrementalSigningCache registerOnAppGroupID:[LCSharedUtils appGroupID]];
+}
+
+@end
