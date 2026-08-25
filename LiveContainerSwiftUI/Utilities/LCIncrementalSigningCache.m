@@ -27,6 +27,11 @@ static NSString * const kCacheKey = @"LCIncrementalSigningCache";
 #ifdef __cplusplus
 extern "C" {
 #endif
+// Default visibility: the host binary (LiveContainer/main.c) calls
+// this. iOS frameworks compile with -fvisibility=hidden by default,
+// so the linker can't find a non-static symbol from a framework's
+// .o files. Mark it explicitly.
+__attribute__((visibility("default")))
 void LCIncrementalSigningCache_register(void) {
     // Read the app group from standard defaults. Best-effort: if
     // it isn't set yet, the cache is a no-op and lazily

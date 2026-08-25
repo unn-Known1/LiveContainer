@@ -54,6 +54,13 @@ static void LCSignalHandlerImpl(int sig, siginfo_t *info, void *ucontext) {
     raise(sig);
 }
 
+// These two functions are called from the host binary
+// (LiveContainer/main.c) which links LiveContainerSwiftUI as
+// a framework. iOS frameworks compile with -fvisibility=hidden
+// by default, so non-static C symbols aren't exported. Mark
+// these explicitly as default-visible so the host's link step
+// can find them.
+__attribute__((visibility("default")))
 void LCSignalHandlerInstall(void) {
     if (g_installed) return;
     g_installed = true;
@@ -71,10 +78,12 @@ void LCSignalHandlerInstall(void) {
     sigaction(SIGTRAP, &sa, NULL);
 }
 
+__attribute__((visibility("default")))
 bool LCSignalHandlerHasPendingReport(void) {
     return g_pendingSignal != 0;
 }
 
+__attribute__((visibility("default")))
 bool LCSignalHandlerDumpAndClearReport(void) {
     if (g_pendingSignal == 0) return false;
 
